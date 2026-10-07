@@ -1,0 +1,3423 @@
+{
+  "info": {
+    "_postman_id": "b1f4c8e2-3a5d-4f6b-9c0a-1d2e3f4a5b6c",
+    "name": "Radiology Appointment Management System",
+    "description": "All API endpoints for the radiology appointment management system.\n\nBase URL: `http://localhost:4000/api/v1`\n\n## Authentication\n\nAll endpoints except `POST /auth/register` and `POST /auth/login` require a JWT.\n\n1. Run **Auth > Register** or **Auth > Login** first — the returned token is saved automatically to the collection variable `token`.\n2. The collection uses Bearer auth, so every other request sends `Authorization: Bearer {{token}}`.\n\nWithout a valid token, protected endpoints return:\n\n```json\n{ \"success\": false, \"statusCode\": 401, \"message\": \"Access denied. No token provided.\", \"data\": null }\n```\n\n(or `\"Invalid or expired token.\"` for a bad/expired token).\n\n## Response shapes\n\nMost successful responses use the shared `ApiResponse` shape:\n\n```json\n{ \"success\": true, \"statusCode\": 200, \"message\": \"Success\", \"data\": {} }\n```\n\nZod validation errors (global error handler) use:\n\n```json\n{ \"success\": false, \"statusCode\": 400, \"message\": \"msg1 & msg2\", \"errors\": [\"msg1\", \"msg2\"] }\n```\n\nController errors use `ApiResponse` (`data: null`, no `errors` array).\n\n## Known quirks (mirrors the current implementation)\n\n- Creates for categories, branches, partners and reservations respond with **HTTP 200** while the body carries `\"statusCode\": 201` (only `POST /auth/register` really returns HTTP 201).\n- `PUT /categories/:id` and `PUT /branches/:id` not-found responses use **HTTP 400** with body `\"statusCode\": 404`.\n- `PUT /radiologies/:id` with a valid but missing id returns **HTTP 200**, `\"message\": \"radiology updated successfully\"`, `\"data\": null` (no 404).\n- `DELETE /branches/:id` with an invalid id returns the typo message `\"invalid brunch id\"`.\n- Unknown paths (with a valid token) return `{ \"status\": \"error\", \"message\": \"route not defined\", \"code\": 404 }`.\n- Most `GET` list endpoints accept `search/page/limit/sort/order` query params (validated, so bad values still 400) but only `GET /branches` actually applies filters — and there `name` / `availableRadiology` are exact-match filters while `page`/`limit`/`search`/`sort`/`order` are forwarded into the Mongo query (so avoid them on branches).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000/api/v1"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "username",
+      "value": "testuser"
+    },
+    {
+      "key": "password",
+      "value": "secret123"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Public endpoints — no token required. Run **Register** or **Login** first; the JWT from `data.token` is stored in the collection variable `token` and attached as a Bearer token to every other request.",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Registration successful', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.statusCode).to.eql(201);",
+                  "  pm.expect(json.message).to.eql('Registration successful');",
+                  "  pm.expect(json.data).to.have.property('token');",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Body:\n- `username` (string, required, min 3)\n- `password` (string, required, min 6)\n\nSaves `data.token` to the `token` collection variable on success."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"Registration successful\",\n  \"data\": {\n    \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2NWYxZjdhOGI5YzA1MDEwMDAwMDAwIiwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc2ODI4ODAwMCwiZXhwIjoxNzY4ODkyODAwfQ.example-signature\",\n    \"user\": {\n      \"id\": \"665f1f7a8b9c050100000000\",\n      \"username\": \"testuser\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Validation Error (weak credentials)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"ab\",\n  \"password\": \"123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Username must be at least 3 characters & Password must be at least 6 characters\",\n  \"errors\": [\n    \"Username must be at least 3 characters\",\n    \"Password must be at least 6 characters\"\n  ]\n}"
+            },
+            {
+              "name": "Username Already Exists",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"existing-user\",\n  \"password\": \"secret123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "register"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Username already exists\",\n  \"data\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Login successful', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.message).to.eql('Login successful');",
+                  "  pm.expect(json.data).to.have.property('token');",
+                  "  pm.collectionVariables.set('token', json.data.token);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Body:\n- `username` (string, required)\n- `password` (string, required)\n\nSaves `data.token` to the `token` collection variable on success."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Login successful\",\n  \"data\": {\n    \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2NWYxZjdhOGI5YzA1MDEwMDAwMDAwIiwidXNlcm5hbWUiOiJ0ZXN0dXNlciIsImlhdCI6MTc2ODI4ODAwMCwiZXhwIjoxNzY4ODkyODAwfQ.example-signature\",\n    \"user\": {\n      \"id\": \"665f1f7a8b9c050100000000\",\n      \"username\": \"testuser\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Invalid Credentials",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"wrong-password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Invalid credentials\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Validation Error (missing fields)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Username is required & Password is required\",\n  \"errors\": [\n    \"Username is required\",\n    \"Password is required\"\n  ]\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Check API",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Response is success', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.status).to.eql('success');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/check",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "check"
+              ]
+            },
+            "description": "Simple health check endpoint. Requires a Bearer token (mounted behind the global auth middleware)."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "check"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"success\"\n}"
+            },
+            {
+              "name": "Unauthorized (no token)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/check",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "check"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 401,\n  \"message\": \"Access denied. No token provided.\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "description": "CRUD for radiology categories. Categories are referenced by radiologies, partners (profit share) and branches (available radiology).",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success flag is true', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.statusCode).to.eql(200);",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            },
+            "description": "Returns all categories. Accepts (but ignores) `search/page/limit/sort/order` query params — invalid values still return 400."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/categories",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": [\n    {\n      \"_id\": \"665f1a2b3c4d5e6f7a8b9c01\",\n      \"name\": \"MRI\",\n      \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n      \"updatedAt\": \"2026-01-10T08:15:30.120Z\",\n      \"__v\": 0\n    },\n    {\n      \"_id\": \"665f1a2b3c4d5e6f7a8b9c02\",\n      \"name\": \"X-Ray\",\n      \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n      \"updatedAt\": \"2026-01-10T08:16:02.450Z\",\n      \"__v\": 0\n    }\n  ]\n}"
+            },
+            {
+              "name": "Empty List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/categories",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": []\n}"
+            },
+            {
+              "name": "Invalid Query Parameter",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/categories?limit=1000",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "1000"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid query parameter: limit\",\n  \"errors\": [\n    \"query.limit must be an integer between 1 and 100\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Category created', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.statusCode).to.eql(201);",
+                  "  pm.expect(json.message).to.eql('created new category successful');",
+                  "  pm.expect(json.data).to.have.property('_id');",
+                  "  pm.expect(json.data.name).to.eql('MRI');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"MRI\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            },
+            "description": "Body:\n- `name` (string, required — must be a string; empty string passes validation)\n\nReturns HTTP 200 with body `statusCode: 201`."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"MRI\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/categories",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"created new category successful\",\n  \"data\": {\n    \"_id\": \"665f1a2b3c4d5e6f7a8b9c01\",\n    \"name\": \"MRI\",\n    \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n    \"updatedAt\": \"2026-01-10T08:15:30.120Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Already Exists",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"MRI\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/categories",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"this category is already exist\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Validation Error (missing name)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/categories",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"the category name is required\",\n  \"errors\": [\n    \"the category name is required\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Category updated', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message).to.eql('category updated successfully');",
+                  "  pm.expect(json.data).to.have.property('_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"MRI Scan\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1a2b3c4d5e6f7a8b9c01"
+                }
+              ]
+            },
+            "description": "Path param `id`: valid ObjectId of the category.\nBody: `{ \"name\": string }` — no zod validation on this route."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"MRI Scan\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/categories/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1a2b3c4d5e6f7a8b9c01"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"category updated successfully\",\n  \"data\": {\n    \"_id\": \"665f1a2b3c4d5e6f7a8b9c01\",\n    \"name\": \"MRI Scan\",\n    \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n    \"updatedAt\": \"2026-01-11T10:02:45.780Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Invalid ID",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"MRI Scan\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/categories/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid category id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Not Found (HTTP 400, body statusCode 404)",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"MRI Scan\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/categories/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1a2b3c4d5e6f7a8b9cff"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"category not found\",\n  \"data\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));",
+                  "pm.test('No content', () => pm.response.to.be.empty);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/categories/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1a2b3c4d5e6f7a8b9c01"
+                }
+              ]
+            },
+            "description": "Deletes the category and all radiologies belonging to it. Returns 204 No Content."
+          },
+          "response": [
+            {
+              "name": "Deleted (No Content)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/categories/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1a2b3c4d5e6f7a8b9c01"
+                    }
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "Invalid ID",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/categories/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid category id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Not Found",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/categories/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "categories",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1a2b3c4d5e6f7a8b9cff"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"category not found\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Radiologies",
+      "description": "CRUD for radiology exams. Each radiology belongs to a category. Prices live on branches, on each branch's `availableRadiology` entry (`price` + `salePrice`).",
+      "item": [
+        {
+          "name": "Get All Radiologies",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success flag is true', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/radiologies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "radiologies"
+              ]
+            },
+            "description": "Returns all radiologies with `category` populated. Accepts (but ignores) `search/page/limit/sort/order` query params."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": [\n    {\n      \"_id\": \"665f1b3c4d5e6f7a8b9c0201\",\n      \"name\": \"Brain MRI\",\n      \"category\": {\n        \"_id\": \"665f1a2b3c4d5e6f7a8b9c01\",\n        \"name\": \"MRI\",\n        \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n        \"updatedAt\": \"2026-01-10T08:15:30.120Z\",\n        \"__v\": 0\n      },\n      \"createdAt\": \"2026-01-10T09:00:11.330Z\",\n      \"updatedAt\": \"2026-01-10T09:00:11.330Z\",\n      \"__v\": 0\n    }\n  ]\n}"
+            },
+            {
+              "name": "Empty List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": []\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Radiology",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Radiology created', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.message).to.eql('radiology created successfully');",
+                  "  pm.expect(json.data).to.have.property('_id');",
+                  "  pm.expect(json.data.name).to.eql('Brain MRI');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Brain MRI\",\n  \"category\": \"665f1a2b3c4d5e6f7a8b9c01\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/radiologies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "radiologies"
+              ]
+            },
+            "description": "Body:\n- `name` (string, required, min 1)\n- `category` (string, required, valid category ObjectId — existence is not checked)"
+          },
+          "response": [
+            {
+              "name": "Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Brain MRI\",\n  \"category\": \"665f1a2b3c4d5e6f7a8b9c01\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"radiology created successfully\",\n  \"data\": {\n    \"_id\": \"665f1b3c4d5e6f7a8b9c0201\",\n    \"name\": \"Brain MRI\",\n    \"category\": {\n      \"_id\": \"665f1a2b3c4d5e6f7a8b9c01\",\n      \"name\": \"MRI\",\n      \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n      \"updatedAt\": \"2026-01-10T08:15:30.120Z\",\n      \"__v\": 0\n    },\n    \"createdAt\": \"2026-01-10T09:00:11.330Z\",\n    \"updatedAt\": \"2026-01-10T09:00:11.330Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Validation Error (invalid payload)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"\",\n  \"category\": \"bad-id\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Name cannot be empty & invalid category id\",\n  \"errors\": [\n    \"Name cannot be empty\",\n    \"invalid category id\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Radiology",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Radiology updated', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message).to.eql('radiology updated successfully');",
+                  "  pm.expect(json.data.name).to.eql('Brain MRI Updated');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Brain MRI Updated\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/radiologies/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "radiologies",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1b3c4d5e6f7a8b9c0201"
+                }
+              ]
+            },
+            "description": "Partial update — send any fields present on the radiology model (`name`, `category`). A valid but non-existent id returns HTTP 200 with `data: null` (there is no 404 branch)."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Brain MRI Updated\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1b3c4d5e6f7a8b9c0201"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"radiology updated successfully\",\n  \"data\": {\n    \"_id\": \"665f1b3c4d5e6f7a8b9c0201\",\n    \"name\": \"Brain MRI Updated\",\n    \"category\": {\n      \"_id\": \"665f1a2b3c4d5e6f7a8b9c01\",\n      \"name\": \"MRI\",\n      \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n      \"updatedAt\": \"2026-01-10T08:15:30.120Z\",\n      \"__v\": 0\n    },\n    \"createdAt\": \"2026-01-10T09:00:11.330Z\",\n    \"updatedAt\": \"2026-01-12T11:20:00.910Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Invalid ID",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Brain MRI Updated\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid radiology id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Missing ID returns success with null data",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Brain MRI Updated\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1b3c4d5e6f7a8b9c0cff"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"radiology updated successfully\",\n  \"data\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Radiology",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/radiologies/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "radiologies",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1b3c4d5e6f7a8b9c0201"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Deleted (No Content)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1b3c4d5e6f7a8b9c0201"
+                    }
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "Invalid ID",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid radiology id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Not Found",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/radiologies/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "radiologies",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1b3c4d5e6f7a8b9c0cff"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"radiology not found\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Branches",
+      "description": "CRUD for clinic branches. Branches hold a work schedule, available radiologies (each entry has a `price` and `salePrice`) and a list of reservations.",
+      "item": [
+        {
+          "name": "Get All Branches",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success flag is true', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "branches"
+              ]
+            },
+            "description": "Populates `availableRadiology.radiology` (each entry keeps `price` and `salePrice`) and `reservations` (full documents).\n\nQuery filters: `name` and `availableRadiology` are exact-match Mongo filters. `search/page/limit/sort/order` are accepted but forwarded into the Mongo query as field names — avoid them here."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/branches",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": [\n    {\n      \"_id\": \"665f1c4d5e6f7a8b9c030100\",\n      \"name\": \"Main Branch\",\n      \"address\": \"12 Main Street, Cairo\",\n      \"availableRadiology\": [\n        {\n          \"radiology\": {\n            \"_id\": \"665f1b3c4d5e6f7a8b9c0201\",\n            \"name\": \"Brain MRI\",\n            \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n            \"createdAt\": \"2026-01-10T09:00:11.330Z\",\n            \"updatedAt\": \"2026-01-10T09:00:11.330Z\",\n            \"__v\": 0\n          },\n          \"price\": 1500,\n          \"salePrice\": 1350\n        }\n      ],\n      \"workSchedule\": [\n        {\n          \"weekday\": 0,\n          \"openTime\": 480,\n          \"closeTime\": 1020\n        },\n        {\n          \"weekday\": 1,\n          \"openTime\": 480,\n          \"closeTime\": 1020\n        }\n      ],\n      \"reservations\": [\n        {\n          \"_id\": \"665f1e6f7a8b9c0401000000\",\n          \"state\": \"pending\",\n          \"date\": \"2026-01-20T11:00:00.000Z\",\n          \"notes\": \"fasting required\",\n          \"branch\": \"665f1c4d5e6f7a8b9c030100\",\n          \"client\": \"665f1f7a8b9c050100000000\",\n          \"radiologies\": [\n            \"665f1b3c4d5e6f7a8b9c0201\"\n          ],\n          \"fromPartner\": \"665f1d5e6f7a8b9c04010001\",\n          \"createdAt\": \"2026-01-18T08:00:00.000Z\",\n          \"updatedAt\": \"2026-01-18T08:00:00.000Z\",\n          \"__v\": 0\n        }\n      ],\n      \"createdAt\": \"2026-01-10T10:00:00.000Z\",\n      \"updatedAt\": \"2026-01-15T12:30:00.450Z\",\n      \"__v\": 0\n    }\n  ]\n}"
+            },
+            {
+              "name": "Empty List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/branches",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": []\n}"
+            }
+          ]
+        },
+        {
+          "name": "Get Branch By Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success flag is true', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.data).to.have.property('_id');",
+                  "  pm.expect(json.data.name).to.eql('Main Branch');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/branches/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "branches",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1c4d5e6f7a8b9c030100"
+                }
+              ]
+            },
+            "description": "Returns a single branch with `availableRadiology.radiology` and `reservations` populated."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/branches/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1c4d5e6f7a8b9c030100"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": {\n    \"_id\": \"665f1c4d5e6f7a8b9c030100\",\n    \"name\": \"Main Branch\",\n    \"address\": \"12 Main Street, Cairo\",\n    \"availableRadiology\": [\n      {\n        \"radiology\": {\n          \"_id\": \"665f1b3c4d5e6f7a8b9c0201\",\n          \"name\": \"Brain MRI\",\n          \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n          \"createdAt\": \"2026-01-10T09:00:11.330Z\",\n          \"updatedAt\": \"2026-01-10T09:00:11.330Z\",\n          \"__v\": 0\n        },\n        \"price\": 1500,\n        \"salePrice\": 1350\n      }\n    ],\n    \"workSchedule\": [\n      {\n        \"weekday\": 0,\n        \"openTime\": 480,\n        \"closeTime\": 1020\n      },\n      {\n        \"weekday\": 1,\n        \"openTime\": 480,\n        \"closeTime\": 1020\n      }\n    ],\n    \"reservations\": [\n      {\n        \"_id\": \"665f1e6f7a8b9c0401000000\",\n        \"state\": \"pending\",\n        \"date\": \"2026-01-20T11:00:00.000Z\",\n        \"notes\": \"fasting required\",\n        \"branch\": \"665f1c4d5e6f7a8b9c030100\",\n        \"client\": \"665f1f7a8b9c050100000000\",\n        \"radiologies\": [\n          \"665f1b3c4d5e6f7a8b9c0201\"\n        ],\n        \"fromPartner\": \"665f1d5e6f7a8b9c04010001\",\n        \"createdAt\": \"2026-01-18T08:00:00.000Z\",\n        \"updatedAt\": \"2026-01-18T08:00:00.000Z\",\n        \"__v\": 0\n      }\n    ],\n    \"createdAt\": \"2026-01-10T10:00:00.000Z\",\n    \"updatedAt\": \"2026-01-15T12:30:00.450Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Invalid ID",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/branches/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid branch id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Not Found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/branches/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1c4d5e6f7a8b9c030cff"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Branch not found\",\n  \"data\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Branch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Branch created', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.statusCode).to.eql(201);",
+                  "  pm.expect(json.message).to.eql('created new branch successful');",
+                  "  pm.expect(json.data).to.have.property('_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Main Branch\",\n  \"address\": \"12 Main Street, Cairo\",\n  \"availableRadiology\": [\n    {\n      \"radiology\": \"665f1b3c4d5e6f7a8b9c0201\",\n      \"price\": 1500,\n      \"salePrice\": 1350\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/branches",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "branches"
+              ]
+            },
+            "description": "Body:\n- `name` (string, required, min 3, unique)\n- `address` (string, required, min 3)\n- `availableRadiology` (array, optional — entries: { radiology, price, salePrice })\n\nReturns HTTP 200 with body `statusCode: 201`."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Main Branch\",\n  \"address\": \"12 Main Street, Cairo\",\n  \"availableRadiology\": [\n    {\n      \"radiology\": \"665f1b3c4d5e6f7a8b9c0201\",\n      \"price\": 1500,\n      \"salePrice\": 1350\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/branches",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"created new branch successful\",\n  \"data\": {\n    \"_id\": \"665f1c4d5e6f7a8b9c030100\",\n    \"name\": \"Main Branch\",\n    \"address\": \"12 Main Street, Cairo\",\n    \"availableRadiology\": [\n      {\n        \"radiology\": \"665f1b3c4d5e6f7a8b9c0201\",\n        \"price\": 1500,\n        \"salePrice\": 1350\n      }\n    ],\n    \"workSchedule\": [],\n    \"reservations\": [],\n    \"createdAt\": \"2026-01-10T10:00:00.000Z\",\n    \"updatedAt\": \"2026-01-10T10:00:00.000Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Already Exists",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Main Branch\",\n  \"address\": \"12 Main Street, Cairo\",\n  \"availableRadiology\": [\n    {\n      \"radiology\": \"665f1b3c4d5e6f7a8b9c0201\",\n      \"price\": 1500,\n      \"salePrice\": 1350\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/branches",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"this branch is already exist\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Validation Error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"ab\",\n  \"address\": \"xy\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/branches",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"the branch name is required & the branch address is required\",\n  \"errors\": [\n    \"the branch name is required\",\n    \"the branch address is required\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Branch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Branch updated', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message).to.eql('Branch updated successfully');",
+                  "  pm.expect(json.data).to.have.property('_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Main Branch - New Cairo\",\n  \"address\": \"45 New Cairo Ave\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/branches/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "branches",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1c4d5e6f7a8b9c030100"
+                }
+              ]
+            },
+            "description": "Accepts any branch fields in the body (`name`, `address`, `availableRadiology`, `workSchedule`, `reservations`). `availableRadiology` entries are { radiology, price, salePrice }. Validators run on update."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Main Branch - New Cairo\",\n  \"address\": \"45 New Cairo Ave\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/branches/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1c4d5e6f7a8b9c030100"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Branch updated successfully\",\n  \"data\": {\n    \"_id\": \"665f1c4d5e6f7a8b9c030100\",\n    \"name\": \"Main Branch - New Cairo\",\n    \"address\": \"45 New Cairo Ave\",\n    \"availableRadiology\": [\n      {\n        \"radiology\": {\n          \"_id\": \"665f1b3c4d5e6f7a8b9c0201\",\n          \"name\": \"Brain MRI\",\n          \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n          \"createdAt\": \"2026-01-10T09:00:11.330Z\",\n          \"updatedAt\": \"2026-01-10T09:00:11.330Z\",\n          \"__v\": 0\n        },\n        \"price\": 1500,\n        \"salePrice\": 1350\n      }\n    ],\n    \"workSchedule\": [\n      {\n        \"weekday\": 0,\n        \"openTime\": 480,\n        \"closeTime\": 1020\n      }\n    ],\n    \"reservations\": [],\n    \"createdAt\": \"2026-01-10T10:00:00.000Z\",\n    \"updatedAt\": \"2026-01-16T09:12:44.100Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Invalid ID",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Main Branch - New Cairo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/branches/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid branch id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Not Found (HTTP 400, body statusCode 404)",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Main Branch - New Cairo\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/branches/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1c4d5e6f7a8b9c030cff"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Branch not found\",\n  \"data\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Branch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/branches/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "branches",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1c4d5e6f7a8b9c030100"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Deleted (No Content)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/branches/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1c4d5e6f7a8b9c030100"
+                    }
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "Invalid ID (note the typo in the API)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/branches/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid brunch id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Not Found",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/branches/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "branches",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1c4d5e6f7a8b9c030cff"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Branch not found\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Partners",
+      "description": "CRUD for partners with per-category profit share percentages.",
+      "item": [
+        {
+          "name": "Get All Partners",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success flag is true', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/partners",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "partners"
+              ]
+            },
+            "description": "Populates `profitShare.category`."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/partners",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": [\n    {\n      \"_id\": \"665f1d5e6f7a8b9c04010001\",\n      \"name\": \"Health Insurance Co\",\n      \"clients\": [],\n      \"profitShare\": [\n        {\n          \"category\": {\n            \"_id\": \"665f1a2b3c4d5e6f7a8b9c01\",\n            \"name\": \"MRI\",\n            \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n            \"updatedAt\": \"2026-01-10T08:15:30.120Z\",\n            \"__v\": 0\n          },\n          \"value\": 30,\n          \"_id\": \"665f1d5e6f7a8b9c04020001\"\n        }\n      ],\n      \"createdAt\": \"2026-01-11T07:45:00.000Z\",\n      \"updatedAt\": \"2026-01-11T07:45:00.000Z\",\n      \"__v\": 0\n    }\n  ]\n}"
+            },
+            {
+              "name": "Empty List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/partners",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": []\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Partner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Partner created', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.statusCode).to.eql(201);",
+                  "  pm.expect(json.message).to.eql('created new partner successful');",
+                  "  pm.expect(json.data).to.have.property('_id');",
+                  "  pm.expect(json.data.profitShare).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Health Insurance Co\",\n  \"profitShare\": [\n    {\n      \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n      \"value\": 30\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/partners",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "partners"
+              ]
+            },
+            "description": "Body:\n- `name` (string, optional)\n- `profitShare` (array, required): each item `{ category: ObjectId, value: number }`\n\nReturns HTTP 200 with body `statusCode: 201`. Note: the duplicate check does not `return`, so a duplicate name can still be persisted after the 400 is sent."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Health Insurance Co\",\n  \"profitShare\": [\n    {\n      \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n      \"value\": 30\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/partners",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"created new partner successful\",\n  \"data\": {\n    \"_id\": \"665f1d5e6f7a8b9c04010001\",\n    \"name\": \"Health Insurance Co\",\n    \"clients\": [],\n    \"profitShare\": [\n      {\n        \"category\": {\n          \"_id\": \"665f1a2b3c4d5e6f7a8b9c01\",\n          \"name\": \"MRI\",\n          \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n          \"updatedAt\": \"2026-01-10T08:15:30.120Z\",\n          \"__v\": 0\n        },\n        \"value\": 30,\n        \"_id\": \"665f1d5e6f7a8b9c04020001\"\n      }\n    ],\n    \"createdAt\": \"2026-01-11T07:45:00.000Z\",\n    \"updatedAt\": \"2026-01-11T07:45:00.000Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Already Exists",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Health Insurance Co\",\n  \"profitShare\": [\n    {\n      \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n      \"value\": 30\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/partners",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"this Partner is already exist\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Validation Error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Health Insurance Co\",\n  \"profitShare\": [\n    {\n      \"category\": \"bad-id\",\n      \"value\": \"thirty\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/partners",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Invalid category id & the profit share value is require\",\n  \"errors\": [\n    \"Invalid category id\",\n    \"the profit share value is require\"\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Partner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Partner updated', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message).to.eql('Partner updated successfully');",
+                  "  pm.expect(json.data).to.have.property('_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Health Insurance Co.\",\n  \"profitShare\": [\n    {\n      \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n      \"value\": 35\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/partners/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "partners",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1d5e6f7a8b9c04010001"
+                }
+              ]
+            },
+            "description": "No zod validation on this route. `profitShare` items are merged by `category`: existing categories get updated values, new categories are appended. `name` is only updated when present."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Health Insurance Co.\",\n  \"profitShare\": [\n    {\n      \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n      \"value\": 35\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/partners/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1d5e6f7a8b9c04010001"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Partner updated successfully\",\n  \"data\": {\n    \"_id\": \"665f1d5e6f7a8b9c04010001\",\n    \"name\": \"Health Insurance Co.\",\n    \"clients\": [],\n    \"profitShare\": [\n      {\n        \"category\": {\n          \"_id\": \"665f1a2b3c4d5e6f7a8b9c01\",\n          \"name\": \"MRI\",\n          \"createdAt\": \"2026-01-10T08:15:30.120Z\",\n          \"updatedAt\": \"2026-01-10T08:15:30.120Z\",\n          \"__v\": 0\n        },\n        \"value\": 35,\n        \"_id\": \"665f1d5e6f7a8b9c04020001\"\n      }\n    ],\n    \"createdAt\": \"2026-01-11T07:45:00.000Z\",\n    \"updatedAt\": \"2026-01-17T14:05:22.000Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Invalid ID",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Updated name\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/partners/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"Invalid partner id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Not Found",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Updated name\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/partners/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1d5e6f7a8b9c0401ffff"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"partner not found\",\n  \"data\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Partner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/partners/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "partners",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1d5e6f7a8b9c04010001"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Deleted (No Content)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/partners/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1d5e6f7a8b9c04010001"
+                    }
+                  ]
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": ""
+            },
+            {
+              "name": "Invalid ID",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/partners/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid partner id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Not Found",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/partners/:id",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "partners",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1d5e6f7a8b9c0401ffff"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"partner not found\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Clients",
+      "description": "Read-only client endpoints. Clients are created automatically when a reservation is created.",
+      "item": [
+        {
+          "name": "Get All Clients",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success flag is true', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/clients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clients"
+              ]
+            },
+            "description": "Populates `reservations`."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": [\n    {\n      \"_id\": \"665f1f7a8b9c050100000000\",\n      \"name\": \"Ahmed Ali\",\n      \"age\": 34,\n      \"phoneNumber\": \"+201001112233\",\n      \"reservations\": [\n        {\n          \"_id\": \"665f1e6f7a8b9c0401000000\",\n          \"state\": \"pending\",\n          \"date\": \"2026-01-20T11:00:00.000Z\",\n          \"notes\": \"fasting required\",\n          \"branch\": \"665f1c4d5e6f7a8b9c030100\",\n          \"client\": \"665f1f7a8b9c050100000000\",\n          \"radiologies\": [\n            \"665f1b3c4d5e6f7a8b9c0201\"\n          ],\n          \"fromPartner\": \"665f1d5e6f7a8b9c04010001\",\n          \"createdAt\": \"2026-01-18T08:00:00.000Z\",\n          \"updatedAt\": \"2026-01-18T08:00:00.000Z\",\n          \"__v\": 0\n        }\n      ]\n    }\n  ]\n}"
+            },
+            {
+              "name": "Empty List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/clients",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clients"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": []\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reservations",
+      "description": "Appointments. A reservation is created together with (or reuses) a client, and is linked to branch + partner + radiologies.",
+      "item": [
+        {
+          "name": "Get All Reservations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success flag is true', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations"
+              ]
+            },
+            "description": "Populates `client`, `branch`, `radiologies` and `fromPartner`. Accepts (but ignores) `search/page/limit/sort/order/state/date` query params."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reservations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reservations"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": [\n    {\n      \"_id\": \"665f1e6f7a8b9c0401000000\",\n      \"state\": \"pending\",\n      \"date\": \"2026-01-20T11:00:00.000Z\",\n      \"notes\": \"fasting required\",\n      \"client\": {\n        \"_id\": \"665f1f7a8b9c050100000000\",\n        \"name\": \"Ahmed Ali\",\n        \"age\": 34,\n        \"phoneNumber\": \"+201001112233\",\n        \"reservations\": [\n          \"665f1e6f7a8b9c0401000000\"\n        ]\n      },\n      \"branch\": {\n        \"_id\": \"665f1c4d5e6f7a8b9c030100\",\n        \"name\": \"Main Branch\",\n        \"address\": \"12 Main Street, Cairo\",\n        \"availableRadiology\": [\n          {\n            \"radiology\": \"665f1b3c4d5e6f7a8b9c0201\",\n            \"price\": 1500,\n            \"salePrice\": 1350\n          }\n        ],\n        \"workSchedule\": [\n          {\n            \"weekday\": 0,\n            \"openTime\": 480,\n            \"closeTime\": 1020\n          },\n          {\n            \"weekday\": 1,\n            \"openTime\": 480,\n            \"closeTime\": 1020\n          }\n        ],\n        \"reservations\": [\n          \"665f1e6f7a8b9c0401000000\"\n        ],\n        \"createdAt\": \"2026-01-10T10:00:00.000Z\",\n        \"updatedAt\": \"2026-01-15T12:30:00.450Z\",\n        \"__v\": 0\n      },\n      \"radiologies\": [\n        {\n          \"_id\": \"665f1b3c4d5e6f7a8b9c0201\",\n          \"name\": \"Brain MRI\",\n          \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n          \"createdAt\": \"2026-01-10T09:00:11.330Z\",\n          \"updatedAt\": \"2026-01-12T11:20:00.910Z\",\n          \"__v\": 0\n        }\n      ],\n      \"fromPartner\": {\n        \"_id\": \"665f1d5e6f7a8b9c04010001\",\n        \"name\": \"Health Insurance Co\",\n        \"clients\": [],\n        \"profitShare\": [\n          {\n            \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n            \"value\": 30,\n            \"_id\": \"665f1d5e6f7a8b9c04020001\"\n          }\n        ],\n        \"createdAt\": \"2026-01-11T07:45:00.000Z\",\n        \"updatedAt\": \"2026-01-17T14:05:22.000Z\",\n        \"__v\": 0\n      },\n      \"createdAt\": \"2026-01-18T08:00:00.000Z\",\n      \"updatedAt\": \"2026-01-18T08:00:00.000Z\",\n      \"__v\": 0\n    }\n  ]\n}"
+            },
+            {
+              "name": "Empty List",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/reservations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reservations"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Success\",\n  \"data\": []\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Reservation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Reservation created', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.success).to.be.true;",
+                  "  pm.expect(json.statusCode).to.eql(201);",
+                  "  pm.expect(json.data).to.have.property('_id');",
+                  "  pm.expect(json.data.state).to.eql('pending');",
+                  "  pm.expect(json.data).to.have.property('client');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-01-20T11:00:00.000Z\",\n  \"notes\": \"fasting required\",\n  \"branch\": \"665f1c4d5e6f7a8b9c030100\",\n  \"radiologies\": [\n    \"665f1b3c4d5e6f7a8b9c0201\"\n  ],\n  \"fromPartner\": \"665f1d5e6f7a8b9c04010001\",\n  \"clientName\": \"Ahmed Ali\",\n  \"clientAge\": 34,\n  \"clientPhone\": \"+201001112233\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reservations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations"
+              ]
+            },
+            "description": "Body:\n- `date` (string, required, ISO datetime)\n- `notes` (string, optional)\n- `branch` (string, required, branch ObjectId)\n- `radiologies` (string[], required, radiology ObjectIds — empty array is allowed by validation)\n- `fromPartner` (string, required, partner ObjectId)\n- `clientName` (string, required)\n- `clientAge` (number, required)\n- `clientPhone` (string, required)\n\nIf a client with the same `clientName` already exists, that client is reused. Returns HTTP 200 with body `statusCode: 201` and default message `\"Success\"`."
+          },
+          "response": [
+            {
+              "name": "Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"date\": \"2026-01-20T11:00:00.000Z\",\n  \"notes\": \"fasting required\",\n  \"branch\": \"665f1c4d5e6f7a8b9c030100\",\n  \"radiologies\": [\n    \"665f1b3c4d5e6f7a8b9c0201\"\n  ],\n  \"fromPartner\": \"665f1d5e6f7a8b9c04010001\",\n  \"clientName\": \"Ahmed Ali\",\n  \"clientAge\": 34,\n  \"clientPhone\": \"+201001112233\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reservations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reservations"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"Success\",\n  \"data\": {\n    \"_id\": \"665f1e6f7a8b9c0401000000\",\n    \"state\": \"pending\",\n    \"date\": \"2026-01-20T11:00:00.000Z\",\n    \"notes\": \"fasting required\",\n    \"client\": {\n      \"_id\": \"665f1f7a8b9c050100000000\",\n      \"name\": \"Ahmed Ali\",\n      \"age\": 34,\n      \"phoneNumber\": \"+201001112233\",\n      \"reservations\": [\n        \"665f1e6f7a8b9c0401000000\"\n      ]\n    },\n    \"branch\": {\n      \"_id\": \"665f1c4d5e6f7a8b9c030100\",\n      \"name\": \"Main Branch\",\n      \"address\": \"12 Main Street, Cairo\",\n      \"availableRadiology\": [\n        {\n          \"radiology\": \"665f1b3c4d5e6f7a8b9c0201\",\n          \"price\": 1500,\n          \"salePrice\": 1350\n        }\n      ],\n      \"workSchedule\": [\n        {\n          \"weekday\": 0,\n          \"openTime\": 480,\n          \"closeTime\": 1020\n        },\n        {\n          \"weekday\": 1,\n          \"openTime\": 480,\n          \"closeTime\": 1020\n        }\n      ],\n      \"reservations\": [\n        \"665f1e6f7a8b9c0401000000\"\n      ],\n      \"createdAt\": \"2026-01-10T10:00:00.000Z\",\n      \"updatedAt\": \"2026-01-15T12:30:00.450Z\",\n      \"__v\": 0\n    },\n    \"radiologies\": [\n      {\n        \"_id\": \"665f1b3c4d5e6f7a8b9c0201\",\n        \"name\": \"Brain MRI\",\n        \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n        \"createdAt\": \"2026-01-10T09:00:11.330Z\",\n        \"updatedAt\": \"2026-01-12T11:20:00.910Z\",\n        \"__v\": 0\n      }\n    ],\n    \"fromPartner\": {\n      \"_id\": \"665f1d5e6f7a8b9c04010001\",\n      \"name\": \"Health Insurance Co\",\n      \"clients\": [],\n      \"profitShare\": [\n        {\n          \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n          \"value\": 30,\n          \"_id\": \"665f1d5e6f7a8b9c04020001\"\n        }\n      ],\n      \"createdAt\": \"2026-01-11T07:45:00.000Z\",\n      \"updatedAt\": \"2026-01-17T14:05:22.000Z\",\n      \"__v\": 0\n    },\n    \"createdAt\": \"2026-01-18T08:00:00.000Z\",\n    \"updatedAt\": \"2026-01-18T08:00:00.000Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Validation Error (missing/invalid fields)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"date\": \"not-a-date\",\n  \"branch\": \"bad-id\",\n  \"radiologies\": [],\n  \"fromPartner\": \"bad-id\",\n  \"clientName\": \"Ahmed Ali\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reservations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reservations"
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"the date must be a valid date & the branch id is required and must be a valid & the partner id is required and must be a valid & the client age is required and must be a number & the client phone is required\",\n  \"errors\": [\n    \"the date must be a valid date\",\n    \"the branch id is required and must be a valid\",\n    \"the partner id is required and must be a valid\",\n    \"the client age is required and must be a number\",\n    \"the client phone is required\"\n  ]\n}"
+            },
+            {
+              "name": "Branch Does Not Exist (model validation)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"date\": \"2026-01-20T11:00:00.000Z\",\n  \"branch\": \"665f1c4d5e6f7a8b9c030cff\",\n  \"radiologies\": [\n    \"665f1b3c4d5e6f7a8b9c0201\"\n  ],\n  \"fromPartner\": \"665f1d5e6f7a8b9c04010001\",\n  \"clientName\": \"Ahmed Ali\",\n  \"clientAge\": 34,\n  \"clientPhone\": \"+201001112233\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reservations",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reservations"
+                  ]
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 500,\n  \"message\": \"reservation validation failed: branch: branch does not exist\",\n  \"errors\": []\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Reservation State",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('State updated', () => {",
+                  "  const json = pm.response.json();",
+                  "  pm.expect(json.message).to.eql('Reservation state updated successfully');",
+                  "  pm.expect(json.data.state).to.eql('complete');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"state\": \"complete\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/reservations/:id/state",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reservations",
+                ":id",
+                "state"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "665f1e6f7a8b9c0401000000"
+                }
+              ]
+            },
+            "description": "Body:\n- `state` (string, required): one of `complete`, `pending`, `missed`\n\nNo zod validation — state is checked manually."
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"state\": \"complete\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reservations/:id/state",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reservations",
+                    ":id",
+                    "state"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1e6f7a8b9c0401000000"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Reservation state updated successfully\",\n  \"data\": {\n    \"_id\": \"665f1e6f7a8b9c0401000000\",\n    \"state\": \"complete\",\n    \"date\": \"2026-01-20T11:00:00.000Z\",\n    \"notes\": \"fasting required\",\n    \"client\": {\n      \"_id\": \"665f1f7a8b9c050100000000\",\n      \"name\": \"Ahmed Ali\",\n      \"age\": 34,\n      \"phoneNumber\": \"+201001112233\",\n      \"reservations\": [\n        \"665f1e6f7a8b9c0401000000\"\n      ]\n    },\n    \"branch\": {\n      \"_id\": \"665f1c4d5e6f7a8b9c030100\",\n      \"name\": \"Main Branch\",\n      \"address\": \"12 Main Street, Cairo\",\n      \"availableRadiology\": [\n        {\n          \"radiology\": \"665f1b3c4d5e6f7a8b9c0201\",\n          \"price\": 1500,\n          \"salePrice\": 1350\n        }\n      ],\n      \"workSchedule\": [\n        {\n          \"weekday\": 0,\n          \"openTime\": 480,\n          \"closeTime\": 1020\n        },\n        {\n          \"weekday\": 1,\n          \"openTime\": 480,\n          \"closeTime\": 1020\n        }\n      ],\n      \"reservations\": [\n        \"665f1e6f7a8b9c0401000000\"\n      ],\n      \"createdAt\": \"2026-01-10T10:00:00.000Z\",\n      \"updatedAt\": \"2026-01-15T12:30:00.450Z\",\n      \"__v\": 0\n    },\n    \"radiologies\": [\n      {\n        \"_id\": \"665f1b3c4d5e6f7a8b9c0201\",\n        \"name\": \"Brain MRI\",\n        \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n        \"createdAt\": \"2026-01-10T09:00:11.330Z\",\n        \"updatedAt\": \"2026-01-12T11:20:00.910Z\",\n        \"__v\": 0\n      }\n    ],\n    \"fromPartner\": {\n      \"_id\": \"665f1d5e6f7a8b9c04010001\",\n      \"name\": \"Health Insurance Co\",\n      \"clients\": [],\n      \"profitShare\": [\n        {\n          \"category\": \"665f1a2b3c4d5e6f7a8b9c01\",\n          \"value\": 30,\n          \"_id\": \"665f1d5e6f7a8b9c04020001\"\n        }\n      ],\n      \"createdAt\": \"2026-01-11T07:45:00.000Z\",\n      \"updatedAt\": \"2026-01-17T14:05:22.000Z\",\n      \"__v\": 0\n    },\n    \"createdAt\": \"2026-01-18T08:00:00.000Z\",\n    \"updatedAt\": \"2026-01-20T13:45:10.250Z\",\n    \"__v\": 0\n  }\n}"
+            },
+            {
+              "name": "Invalid ID",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"state\": \"complete\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reservations/:id/state",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reservations",
+                    ":id",
+                    "state"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "not-an-object-id"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"invalid reservation id\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Invalid State",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"state\": \"cancelled\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reservations/:id/state",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reservations",
+                    ":id",
+                    "state"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1e6f7a8b9c0401000000"
+                    }
+                  ]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 400,\n  \"message\": \"state must be complete, pending or missed\",\n  \"data\": null\n}"
+            },
+            {
+              "name": "Not Found",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"state\": \"complete\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/reservations/:id/state",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "reservations",
+                    ":id",
+                    "state"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "665f1e6f7a8b9c0401ffffff"
+                    }
+                  ]
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"statusCode\": 404,\n  \"message\": \"Reservation not found\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
